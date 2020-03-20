@@ -52,12 +52,27 @@ def get_annotated_dataset(rurebus_dir: str):
             os.path.join(rurebus_dir, annotation_file) + 'ann').readlines()]
         file_ann = [tuple(line.split('\t')) for line in file_ann]
         entities = [line for line in file_ann if line[0].startswith('T')]
-        entities = [(line[0], line[1], '\t'.join(line[2:])) for line in entities]
-        entities_map = dict(
-            [(tag, (attrs.split(' ')[0], tuple([int(position) for position in attrs.split(' ')[1:]]), tag_text)) for
-             (tag, attrs, tag_text) in entities])
+        ignored_entities = set([line[0] for line in entities if len(line[1].split()) != 3])
+        entities = [(line[0], line[1], '\t'.join(line[2:])) for line in entities if
+                    line[0] not in ignored_entities]
+        try:
+            entities_map = dict(
+                [(tag, (attrs.split(' ')[0], tuple([int(position) for position in attrs.split(' ')[1:]]), tag_text)) for
+                 (tag, attrs, tag_text) in entities])
+        except ValueError:
+            print(annotation_file)
+            entities_map = dict(
+                [(tag, (attrs.split(' ')[0], tuple(
+                    [int(position) if ';' not in position else int(position.split(';')[0]) for position in
+                     attrs.split(' ')[1:]]), tag_text)) for
+                 (tag, attrs, tag_text) in entities])
+            # raise ValueError
 
         relations = [line for line in file_ann if line[0].startswith('R')]
+        r_args = [line[1].split(' ')[1][5:] for line in relations]
+        l_args = [line[1].split(' ')[2][5:] for line in relations]
+        relations = [line for l_arg, r_arg, line in zip(r_args, l_args, relations) if
+                     r_arg not in ignored_entities or r_arg not in ignored_entities]
         relations_map = dict([
             (
                 tag,
@@ -157,6 +172,7 @@ def get_tag_and_relation_dataset(rurebus_data_dir: str, part: str = 'train_part_
                     'token': token,
                     'tag': example_tags,
                     'id': f'{part}-{annotated_file}-{sent_id}-{subj}',
+                    # 'id': f'{part}-{annotated_file}-{sent_id}-{"_".join([str(subj_start), str(subj_end)])}',
                     'sentence': sentence,
                     'tokenized_sentence': tokenized_sentence,
                     'subj_start': subj_start,
@@ -245,7 +261,8 @@ def read_examples(examples_path):
 def check_output_dir(output_dir: str, force_write: bool):
     if os.path.exists(output_dir):
         if force_write:
-            os.system(f'rm {os.path.join(output_dir, "*")}')
+            print('overwriting existing files')
+            # os.system(f'rm {os.path.join(output_dir, "*")}')
         else:
             raise RuntimeError
     else:
@@ -378,7 +395,7 @@ def write_tag_and_relation_predictions_to_folder(output_dir: str, eval_examples_
                                                  force_write=False, postprocess=True, prefix_part='test_part',
                                                  bert_tokenizer='bert-base-multilingual-uncased', offset_in_id=2):
     check_output_dir(os.path.join(output_dir, 'relations'), force_write)
-    check_output_dir(os.path.join(output_dir, 'tags'), force_write)
+    check_output_dir(os.path.join(output_dir, 'set_1'), force_write)
 
     eval_examples = read_examples(eval_examples_path)
     df = pd.read_csv(eval_predictions_path, sep='\t')
@@ -441,7 +458,7 @@ def write_tag_and_relation_predictions_to_folder(output_dir: str, eval_examples_
                     predicted_relations_and_examples_tuples.append(
                         (relations, corresponding_example, corresponding_examples))
 
-        write_tag_ann_to_file(os.path.join(output_dir, 'tags', f"{source_file_name}.ann"),
+        write_tag_ann_to_file(os.path.join(output_dir, 'set_1', f"{source_file_name}.ann"),
                               predicted_tags_and_examples_tuples)
         write_relation_ann_to_file(os.path.join(output_dir, 'relations', f"{source_file_name}.ann"),
                                    predicted_relations_and_examples_tuples)
