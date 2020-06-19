@@ -5,7 +5,7 @@ on second subtask. Also the solution achieved non official first place in third 
 Working code will be available soon in master branch.
 
 
-|   *      | NER | RE with NEs | End-to-end RE |
+|         | NER | RE with NEs | End-to-end RE |
 | :---:   | :---:    | :---:    | :---:   |
 | **_Team_**   | **_f-measure_** | **_f-measure_** |  **_f-measure_**  |
 | [**davletov-aa**](https://github.com/AdisDavletov/DeftEval2020/tree/dev) | **0.561** (1) | 0.394 (2) | 0.132 (1*) |
